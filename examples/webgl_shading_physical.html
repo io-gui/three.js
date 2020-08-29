@@ -250,9 +250,8 @@
 
 				controls.rotateSpeed = 1.0;
 				controls.zoomSpeed = 1.2;
-				controls.panSpeed = 0.8;
 
-				controls.staticMoving = true;
+				controls.enableDamping = false;
 
 				controls.keys = [ 65, 83, 68 ];
 
@@ -315,8 +314,6 @@
 
 				renderer.setSize( window.innerWidth, window.innerHeight );
 
-				controls.handleResize();
-
 			}
 
 			//
@@ -336,8 +333,6 @@
 				// update
 
 				const delta = clock.getDelta();
-
-				controls.update();
 
 				if ( mixer ) {
 

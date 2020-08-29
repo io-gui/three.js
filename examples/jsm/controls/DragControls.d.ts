@@ -1,23 +1,15 @@
-import {
-	Camera,
-	EventDispatcher,
-	Object3D
-} from '../../../src/Three';
+import { Object3D, PerspectiveCamera, OrthographicCamera } from '../../../src/Three';
+import { Controls, Pointer } from './Controls.js';
 
-export class DragControls extends EventDispatcher {
+export declare class DragControls extends Controls {
 
-	constructor( objects: Object3D[], camera: Camera, domElement?: HTMLElement );
-
-	object: Camera;
-
-	// API
-
-	enabled: boolean;
+	lookAtTarget: boolean;
+	objects: Object3D[];
 	transformGroup: boolean;
-
-	activate(): void;
-	deactivate(): void;
-	dispose(): void;
-	getObjects(): Object3D[];
+	constructor( objects: Object3D[], camera: PerspectiveCamera | OrthographicCamera, domElement: HTMLElement );
+	onTrackedPointerHover( pointer: Pointer ): void;
+	onTrackedPointerDown( pointer: Pointer ): void;
+	onTrackedPointerMove( pointer: Pointer ): void;
+	onTrackedPointerUp( pointer: Pointer, pointers: Pointer[] ): void;
 
 }

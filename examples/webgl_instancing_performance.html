@@ -258,6 +258,7 @@
 			// controls
 
 			controls = new OrbitControls( camera, renderer.domElement );
+			controls.autoRotateSpeed = 5.0;
 			controls.autoRotate = true;
 
 			// stats
@@ -305,7 +306,6 @@
 
 			requestAnimationFrame( animate );
 
-			controls.update();
 			stats.update();
 
 			render();
