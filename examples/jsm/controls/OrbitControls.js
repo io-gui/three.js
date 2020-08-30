@@ -550,7 +550,15 @@ var OrbitControls = function ( object, domElement ) {
 	// event handlers - FSM: listen for events and reset state
 	//
 
-	this.onPointerDown = function ( pointers ) {
+	this.addEventListener( 'contextmenu', function( event ) {
+
+		event.preventDefault();
+
+	});
+
+	this.addEventListener( 'multipointerdown', function ( event ) {
+
+		const pointers = event.pointers;
 
 		switch ( pointers.length ) {
 
@@ -710,9 +718,11 @@ var OrbitControls = function ( object, domElement ) {
 
 		}
 
-	};
+	});
 
-	this.onPointerMove = function ( pointers ) {
+	this.addEventListener( 'multipointermove', function( event ) {
+
+		const pointers = event.pointers;
 
 		switch ( pointers.length ) {
 
@@ -776,9 +786,11 @@ var OrbitControls = function ( object, domElement ) {
 
 		}
 
-	};
+	});
 
-	this.onPointerUp = function ( pointers ) {
+	this.addEventListener( 'multipointerup', function( event ) {
+
+		const pointers = event.pointers;
 
 		if ( pointers.length === 0 ) {
 
@@ -788,11 +800,14 @@ var OrbitControls = function ( object, domElement ) {
 
 		}
 
-	};
+	});
 
-	this.onWheel = function( event ) {
+	this.addEventListener( 'wheel', function( event ) {
 
 		if ( scope.enableZoom === false || ( state !== STATE.NONE && state !== STATE.ROTATE ) ) return;
+
+		event.preventDefault();
+		event.stopPropagation();
 
 		scope.dispatchEvent( startEvent );
 
@@ -810,9 +825,9 @@ var OrbitControls = function ( object, domElement ) {
 
 		scope.dispatchEvent( endEvent );
 
-	}
+	});
 
-	this.onKeyDown = function( event ) {
+	this.addEventListener( 'keydown', function( event ) {
 
 		if ( scope.enableKeys === false || scope.enablePan === false ) return;
 
@@ -851,19 +866,15 @@ var OrbitControls = function ( object, domElement ) {
 
 		}
 
-	}
+	});
 
-	this.onDisabled = function() {
-
-		Controls.prototype.onDisabled.call( this );
+	this.addEventListener( 'disabled', function() {
 
 		state = STATE.NONE;
 
 		scope.dispatchEvent( cancelEvent );
 
-		return false;
-
-	}
+	});
 
 	// force an update at start
 

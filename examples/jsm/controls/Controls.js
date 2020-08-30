@@ -1,26 +1,61 @@
 import { EventDispatcher } from "../../../build/three.module.js";
 
-// Generic class for various interactive controls.
-// It handles event listener setup and teardown, pointer capture and tracking.
+/**
+ * Generic superclass for various interactive controls. 
+ * - Adds/removes event listeners during lifecycle and on `enabled` property change.
+ * - Forwards all events via `EventDispatcher.dispatchEvent()` API.
+ * - Emits synthetic multi-pointer events "multipointerdown", "multipointermove", "multipointerup".
+ */
 
-var Controls = function ( domElement ) {
+/**
+ * Forwarded events:
+ * "contextmenu", "wheel", "pointerdown", "pointermove", "pointerup", "keydown", "keyup"
+ *
+ * Synthetic events:
+ * "enabled", "disabled", "multipointerdown", "multipointermove", "multipointerup", "dispose"
+ */
+
+ var Controls = function ( domElement ) {
 
 	if ( domElement === undefined ) console.warn( 'THREE.Controls: The second parameter "domElement" is now mandatory.' );
-	if ( domElement === document ) console.error( 'THREE.Controls: "document" should not be used as the target "domElement". Please use "renderer.domElement" instead.' );
+	if ( domElement === document ) console.error( 'THREE.Controls: "domElement" should be "renderer.domElement".' );
 
 	var scope = this;
 
 	this.domElement = domElement;
 
 	var enabled = true;
+
 	Object.defineProperty( this, 'enabled', {
+
 		enumerable: true,
+
 		get: function () {
+
 			return enabled;
+
 		},
+
 		set: function (value) {
+
 			enabled = value;
-			value ? scope.onEnabled() : scope.onDisabled();
+
+			// Adds/removes event listeners on `enabled` property change.
+
+			if (enabled) {
+
+				_connect();
+
+				scope.dispatchEvent( { type: 'enabled' } );
+
+			} else {
+
+				_disconnect();
+
+				scope.dispatchEvent( { type: 'disabled' } );
+
+			}
+
 		}
 	});
 
@@ -31,18 +66,13 @@ var Controls = function ( domElement ) {
 
 	function _onContextMenu( event ) {
 
-		event.preventDefault();
-
-		scope.onContextMenu( event );
+		scope.dispatchEvent( event );
 
 	}
 
 	function _onWheel( event ) {
 
-		event.preventDefault();
-		event.stopPropagation();
-
-		scope.onWheel( event );
+		scope.dispatchEvent( event );
 
 	}
 
@@ -54,7 +84,8 @@ var Controls = function ( domElement ) {
 
 		scope._pointers.push( new Pointer( event ) );
 
-		scope.onPointerDown( scope._pointers );
+		scope.dispatchEvent( event );
+		scope.dispatchEvent( { type: 'multipointerdown', pointers: scope._pointers } );
 
 	}
 
@@ -64,7 +95,8 @@ var Controls = function ( domElement ) {
 
 		if ( scope._pointers[ i ] ) scope._pointers[ i ].update( event );
 
-		scope.onPointerMove( scope._pointers );
+		scope.dispatchEvent( event );
+		scope.dispatchEvent( { type: 'multipointermove', pointers: scope._pointers } );
 
 	}
 
@@ -76,43 +108,56 @@ var Controls = function ( domElement ) {
 
 		scope.domElement.releasePointerCapture( event.pointerId );
 
-		scope.onPointerUp( scope._pointers );
+		scope.dispatchEvent( event );
+		scope.dispatchEvent( { type: 'multipointerup', pointers: scope._pointers } );
 
 	}
 
 	function _onKeyDown( event ) {
 
-		event.preventDefault();
-		event.stopPropagation();
-
-		scope.onKeyDown( event );
+		scope.dispatchEvent( event );
 
 	}
 
 	function _onKeyUp( event ) {
 
-		event.preventDefault();
-		event.stopPropagation();
-
-		scope.onKeyUp( event );
+		scope.dispatchEvent( event );
 
 	}
 
-	this.connect = function () {
+	function _connect () {
 
-		this.domElement.addEventListener( 'contextmenu', _onContextMenu, false );
-		this.domElement.addEventListener( 'wheel', _onWheel, false );
+		scope.domElement.addEventListener( 'contextmenu', _onContextMenu, false );
+		scope.domElement.addEventListener( 'wheel', _onWheel, false );
 
-		this.domElement.addEventListener( 'pointerdown', _onPointerDown, false );
-		this.domElement.addEventListener( 'pointermove', _onPointerMove, false );
-		this.domElement.addEventListener( 'pointerup', _onPointerUp, false );
+		scope.domElement.addEventListener( 'pointerdown', _onPointerDown, false );
+		scope.domElement.addEventListener( 'pointermove', _onPointerMove, false );
+		scope.domElement.addEventListener( 'pointerup', _onPointerUp, false );
 
-		this.domElement.addEventListener( 'keydown', _onKeyDown, false );
-		this.domElement.addEventListener( 'keyup', _onKeyUp, false );
+		scope.domElement.addEventListener( 'keydown', _onKeyDown, false );
+		scope.domElement.addEventListener( 'keyup', _onKeyUp, false );
+
+		// make sure element can receive keys.
+
+		if ( scope.domElement.tabIndex === - 1 ) {
+
+			scope.domElement.tabIndex = 0;
+
+		}
+
+		// make sure element has disabled touch-actions.
+
+		if ( window.getComputedStyle( scope.domElement ).touchAction !== 'none' ) {
+
+			scope.domElement.style.touchAction = 'none';
+
+		}
+
+		// TODO: consider reverting "tabIndex" and "style.touchAction" attributes on disconnect.
 
 	}
 
-	this.disconnect = function () {
+	function _disconnect () {
 
 		scope.domElement.removeEventListener( 'contextmenu', _onContextMenu, false );
 		scope.domElement.removeEventListener( 'wheel', _onWheel, false );
@@ -124,71 +169,35 @@ var Controls = function ( domElement ) {
 		scope.domElement.removeEventListener( 'keydown', _onKeyDown, false );
 		scope.domElement.removeEventListener( 'keyup', _onKeyUp, false );
 
-		for (var i = 0; i < this._pointers.length; i++) {
+		for (var i = 0; i < scope._pointers.length; i++) {
 
-			this.domElement.releasePointerCapture( this._pointers[i].id );
+			scope.domElement.releasePointerCapture( scope._pointers[i].id );
 	
 		}
 	
-		this._pointers.length = 0;
+		scope._pointers.length = 0;
 
 	};
 
 	this.dispose = function () {
 
-		this.disconnect();
+		_disconnect();
 
-		//scope.dispatchEvent( { type: 'dispose' } ); // should this be added here?
-
-	}
-
-
-	// make sure element can receive keys.
-
-	if ( this.domElement.tabIndex === - 1 ) {
-
-		this.domElement.tabIndex = 0;
+		scope.dispatchEvent( { type: 'dispose' } );
 
 	}
 
-	// make sure element has disabled touch-actions.
-
-	if ( window.getComputedStyle( this.domElement ).touchAction !== 'none' ) {
-
-		this.domElement.style.touchAction = 'none';
-
-	}
-
-	this.connect();
+	_connect();
 
 }
 
 Controls.prototype = Object.create( EventDispatcher.prototype );
 Controls.prototype.constructor = Controls;
+Controls.prototype.dispatchEvent = function( event ) {
 
-Controls.prototype.onContextMenu = function ( event ) {};
-Controls.prototype.onWheel = function ( event ) {};
+	Object.defineProperty( event, 'target', { writable: true } );
 
-Controls.prototype.onPointerDown = function ( pointers ) {};
-Controls.prototype.onPointerMove = function ( pointers ) {};
-Controls.prototype.onPointerUp = function ( pointers ) {};
-
-Controls.prototype.onKeyDown = function ( event ) {};
-Controls.prototype.onKeyUp = function ( event ) {};
-
-Controls.prototype.onDisabled = function() {
-
-	this.disconnect();
-
-	return false;
-
-}
-
-Controls.prototype.onEnabled = function() {
-
-	this.connect();
-
-	return true;
+	EventDispatcher.prototype.dispatchEvent.call( this, event );
 
 }
 
