@@ -9,23 +9,22 @@ export class Controls extends EventDispatcher {
 	// API
 	enabled: boolean;
 
+	// Event handlers
+	onContextMenu( event: any ): void;
+	onWheel( event: any ): void;
+	
+	onPointerDown( pointers: Array<Pointer> ): void;
+	onPointerMove( pointers: Array<Pointer> ): void;
+	onPointerUp( pointers: Array<Pointer> ): void;
+	
+	onKeyDown( event: any ): void;
+	onKeyUp( event: any ): void;
+	
+	onDisabled(): void;
+
+	connect(): void;
+	disconnect(): void;
 	dispose(): void;
-
-	// PointerEvents handlers
-	handlePointerDown( pointers: Array<Pointer> ): void;
-
-	handlePointerMove( pointers: Array<Pointer> ): void;
-
-	handlePointerUp( pointers: Array<Pointer> ): void;
-
-	// Other handlers
-	handleWheel( event: any ): void;
-
-	handleKeyDown( event: any ): void;
-
-	handleKeyUp( event: any ): void;
-
-	handleDisabled(): void;
 
 }
 

@@ -550,7 +550,7 @@ var OrbitControls = function ( object, domElement ) {
 	// event handlers - FSM: listen for events and reset state
 	//
 
-	this.handlePointerDown = function ( pointers ) {
+	this.onPointerDown = function ( pointers ) {
 
 		switch ( pointers.length ) {
 
@@ -712,7 +712,7 @@ var OrbitControls = function ( object, domElement ) {
 
 	};
 
-	this.handlePointerMove = function ( pointers ) {
+	this.onPointerMove = function ( pointers ) {
 
 		switch ( pointers.length ) {
 
@@ -778,7 +778,7 @@ var OrbitControls = function ( object, domElement ) {
 
 	};
 
-	this.handlePointerUp = function ( pointers ) {
+	this.onPointerUp = function ( pointers ) {
 
 		if ( pointers.length === 0 ) {
 
@@ -790,7 +790,7 @@ var OrbitControls = function ( object, domElement ) {
 
 	};
 
-	this.handleWheel = function( event ) {
+	this.onWheel = function( event ) {
 
 		if ( scope.enableZoom === false || ( state !== STATE.NONE && state !== STATE.ROTATE ) ) return;
 
@@ -812,7 +812,7 @@ var OrbitControls = function ( object, domElement ) {
 
 	}
 
-	this.handleKeyDown = function( event ) {
+	this.onKeyDown = function( event ) {
 
 		if ( scope.enableKeys === false || scope.enablePan === false ) return;
 
@@ -853,9 +853,9 @@ var OrbitControls = function ( object, domElement ) {
 
 	}
 
-	this.handleDisabled = function() {
+	this.onDisabled = function() {
 
-		Controls.prototype.handleDisabled.call( this );
+		Controls.prototype.onDisabled.call( this );
 
 		state = STATE.NONE;
 

@@ -12,7 +12,7 @@ var Controls = function ( domElement ) {
 
 	this.domElement = domElement;
 
-	var enabled = true;	
+	var enabled = true;
 	Object.defineProperty( this, 'enabled', {
 		enumerable: true,
 		get: function () {
@@ -20,37 +20,33 @@ var Controls = function ( domElement ) {
 		},
 		set: function (value) {
 			enabled = value;
-			if (!value) scope.handleDisabled();
+			value ? scope.onEnabled() : scope.onDisabled();
 		}
-	})
+	});
 
 	Object.defineProperty( this, '_pointers', {
 		value: [],
 		enumerable: false,
-	})
+	});
 
-	function onContextMenu( event ) {
-
-		if ( scope.enabled === false ) return;
+	function _onContextMenu( event ) {
 
 		event.preventDefault();
 
+		scope.onContextMenu( event );
+
 	}
 
-	function onWheel( event ) {
-
-		if ( scope.enabled === false ) return;
+	function _onWheel( event ) {
 
 		event.preventDefault();
 		event.stopPropagation();
 
-		scope.handleWheel( event );
+		scope.onWheel( event );
 
 	}
 
-	function onPointerDown( event ) {
-
-		if ( scope.enabled === false ) return;
+	function _onPointerDown( event ) {
 
 		scope.domElement.setPointerCapture( event.pointerId );
 
@@ -58,25 +54,21 @@ var Controls = function ( domElement ) {
 
 		scope._pointers.push( new Pointer( event ) );
 
-		scope.handlePointerDown( scope._pointers );
+		scope.onPointerDown( scope._pointers );
 
 	}
 
-	function onPointerMove( event ) {
-
-		if ( scope.enabled === false ) return;
+	function _onPointerMove( event ) {
 
 		var i = scope._pointers.findIndex( pointer => pointer.id === event.pointerId );
 
 		if ( scope._pointers[ i ] ) scope._pointers[ i ].update( event );
 
-		scope.handlePointerMove( scope._pointers );
+		scope.onPointerMove( scope._pointers );
 
 	}
 
-	function onPointerUp( event ) {
-
-		if ( scope.enabled === false ) return;
+	function _onPointerUp( event ) {
 
 		var i = scope._pointers.findIndex( pointer => pointer.id === event.pointerId );
 
@@ -84,41 +76,72 @@ var Controls = function ( domElement ) {
 
 		scope.domElement.releasePointerCapture( event.pointerId );
 
-		scope.handlePointerUp( scope._pointers );
+		scope.onPointerUp( scope._pointers );
 
 	}
 
-	function onKeyDown( event ) {
-
-		if ( scope.enabled === false ) return;
+	function _onKeyDown( event ) {
 
 		event.preventDefault();
 		event.stopPropagation();
 
-		scope.handleKeyDown( event );
+		scope.onKeyDown( event );
 
 	}
 
-	function onKeyUp( event ) {
-
-		if ( scope.enabled === false ) return;
+	function _onKeyUp( event ) {
 
 		event.preventDefault();
 		event.stopPropagation();
 
-		scope.handleKeyUp( event );
+		scope.onKeyUp( event );
 
 	}
 
-	this.domElement.addEventListener( 'contextmenu', onContextMenu, false );
-	this.domElement.addEventListener( 'wheel', onWheel, false );
+	this.connect = function () {
 
-	this.domElement.addEventListener( 'pointerdown', onPointerDown, false );
-	this.domElement.addEventListener( 'pointermove', onPointerMove, false );
-	this.domElement.addEventListener( 'pointerup', onPointerUp, false );
+		this.domElement.addEventListener( 'contextmenu', _onContextMenu, false );
+		this.domElement.addEventListener( 'wheel', _onWheel, false );
 
-	this.domElement.addEventListener( 'keydown', onKeyDown, false );
-	this.domElement.addEventListener( 'keyup', onKeyUp, false );
+		this.domElement.addEventListener( 'pointerdown', _onPointerDown, false );
+		this.domElement.addEventListener( 'pointermove', _onPointerMove, false );
+		this.domElement.addEventListener( 'pointerup', _onPointerUp, false );
+
+		this.domElement.addEventListener( 'keydown', _onKeyDown, false );
+		this.domElement.addEventListener( 'keyup', _onKeyUp, false );
+
+	}
+
+	this.disconnect = function () {
+
+		scope.domElement.removeEventListener( 'contextmenu', _onContextMenu, false );
+		scope.domElement.removeEventListener( 'wheel', _onWheel, false );
+
+		scope.domElement.removeEventListener( 'pointerdown', _onPointerDown, false );
+		scope.domElement.removeEventListener( 'pointermove', _onPointerMove, false );
+		scope.domElement.removeEventListener( 'pointerup', _onPointerUp, false );
+
+		scope.domElement.removeEventListener( 'keydown', _onKeyDown, false );
+		scope.domElement.removeEventListener( 'keyup', _onKeyUp, false );
+
+		for (var i = 0; i < this._pointers.length; i++) {
+
+			this.domElement.releasePointerCapture( this._pointers[i].id );
+	
+		}
+	
+		this._pointers.length = 0;
+
+	};
+
+	this.dispose = function () {
+
+		this.disconnect();
+
+		//scope.dispatchEvent( { type: 'dispose' } ); // should this be added here?
+
+	}
+
 
 	// make sure element can receive keys.
 
@@ -136,47 +159,36 @@ var Controls = function ( domElement ) {
 
 	}
 
-	this.dispose = function () {
-
-		scope.domElement.removeEventListener( 'contextmenu', onContextMenu, false );
-		scope.domElement.removeEventListener( 'wheel', onWheel, false );
-	
-		scope.domElement.removeEventListener( 'pointerdown', onPointerDown, false );
-		scope.domElement.removeEventListener( 'pointermove', onPointerMove, false );
-		scope.domElement.removeEventListener( 'pointerup', onPointerUp, false );
-	
-		scope.domElement.removeEventListener( 'keydown', onKeyDown, false );
-		scope.domElement.removeEventListener( 'keyup', onKeyUp, false );
-	
-		//scope.dispatchEvent( { type: 'dispose' } ); // should this be added here?
-	
-	};
-	
+	this.connect();
 
 }
 
 Controls.prototype = Object.create( EventDispatcher.prototype );
 Controls.prototype.constructor = Controls;
 
-Controls.prototype.handlePointerDown = function ( pointers ) {};
-Controls.prototype.handlePointerMove = function ( pointers ) {};
-Controls.prototype.handlePointerUp = function ( pointers ) {};
+Controls.prototype.onContextMenu = function ( event ) {};
+Controls.prototype.onWheel = function ( event ) {};
 
-Controls.prototype.handleWheel = function ( event ) {};
-Controls.prototype.handleKeyDown = function ( event ) {};
-Controls.prototype.handleKeyUp = function ( event ) {};
+Controls.prototype.onPointerDown = function ( pointers ) {};
+Controls.prototype.onPointerMove = function ( pointers ) {};
+Controls.prototype.onPointerUp = function ( pointers ) {};
 
-Controls.prototype.handleDisabled = function() {
+Controls.prototype.onKeyDown = function ( event ) {};
+Controls.prototype.onKeyUp = function ( event ) {};
 
-	for (var i = 0; i < this._pointers.length; i++) {
+Controls.prototype.onDisabled = function() {
 
-		this.domElement.releasePointerCapture( this._pointers[i].id );
-
-	}
-
-	this._pointers.length = 0;
+	this.disconnect();
 
 	return false;
+
+}
+
+Controls.prototype.onEnabled = function() {
+
+	this.connect();
+
+	return true;
 
 }
 
