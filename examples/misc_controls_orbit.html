@@ -131,10 +131,8 @@
 
 				controls.screenSpacePanning = params.screenSpace;
 
-				controls.enableDamping = params.damping;
+				controls.enableDamping = !! params.damping;
 				controls.dampingFactor = 0.02;
-
-				controls.keys = [ 65, 83, 68 ];
 
 				render();
 

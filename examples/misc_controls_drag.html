@@ -105,6 +105,7 @@
 				container.appendChild( renderer.domElement );
 
 				controls = new DragControls( [ ... objects ], camera, renderer.domElement );
+
 				controls.enableDamping = true;
 
 				controls.addEventListener( 'drag', render );
