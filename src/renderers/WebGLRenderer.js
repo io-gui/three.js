@@ -45,6 +45,7 @@ import { WebGLUtils } from './webgl/WebGLUtils.js';
 import { WebXRManager } from './webxr/WebXRManager.js';
 import { WebGLMaterials } from './webgl/WebGLMaterials.js';
 import { createElementNS } from '../utils.js';
+import { Quaternion } from '../math/Quaternion.js';
 
 function createCanvasElement() {
 
@@ -203,9 +204,13 @@ function WebGLRenderer( parameters = {} ) {
 	// camera matrices cache
 
 	const _projScreenMatrix = new Matrix4();
+	const _envRotationMatrix = new Matrix4();
 
+	const _quaternion = new Quaternion();
 	const _vector2 = new Vector2();
 	const _vector3 = new Vector3();
+	const _vectorX = new Vector3(1, 0, 0);
+	const _vectorZ = new Vector3(0, 0, 1);
 
 	const _emptyScene = { background: null, fog: null, environment: null, overrideMaterial: null, isScene: true };
 
@@ -976,6 +981,14 @@ function WebGLRenderer( parameters = {} ) {
 
 		_projScreenMatrix.multiplyMatrices( camera.projectionMatrix, camera.matrixWorldInverse );
 		_frustum.setFromProjectionMatrix( _projScreenMatrix );
+
+		// UMA Mbody: fix background rotation to camera
+		_vector3.copy(_vectorZ);
+		_vector3.applyQuaternion(camera.quaternion);
+		_vector3.setY(0).normalize();
+		_vector3.normalize();
+		_quaternion.setFromUnitVectors(_vectorX, _vector3);
+		_envRotationMatrix.makeRotationFromQuaternion(_quaternion).invert();
 
 		_localClippingEnabled = this.localClippingEnabled;
 		_clippingEnabled = clipping.init( this.clippingPlanes, _localClippingEnabled, camera );
@@ -1779,6 +1792,7 @@ function WebGLRenderer( parameters = {} ) {
 
 		// common matrices
 
+		p_uniforms.setValue( _gl, 'envRotationMatrix', _envRotationMatrix );
 		p_uniforms.setValue( _gl, 'modelViewMatrix', object.modelViewMatrix );
 		p_uniforms.setValue( _gl, 'normalMatrix', object.normalMatrix );
 		p_uniforms.setValue( _gl, 'modelMatrix', object.matrixWorld );

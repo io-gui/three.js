@@ -5,7 +5,9 @@ varying vec3 vWorldDirection;
 
 void main() {
 
-	vWorldDirection = transformDirection( position, modelMatrix );
+	// UMA Mbody: fix background rotation to camera
+	// vWorldDirection = transformDirection( position, modelMatrix );
+	vWorldDirection = (envRotationMatrix * vec4(transformDirection( position, modelMatrix ), 1.0)).xyz;
 
 	#include <begin_vertex>
 	#include <project_vertex>

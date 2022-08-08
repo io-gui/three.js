@@ -5,7 +5,11 @@ export default /* glsl */`
 
 		#if defined( ENVMAP_TYPE_CUBE_UV )
 
+
 			vec3 worldNormal = inverseTransformDirection( normal, viewMatrix );
+
+			// UMA Mbody: fix background rotation to camera
+			worldNormal = (envRotationMatrix * vec4(worldNormal, 1.0)).xyz;
 
 			vec4 envMapColor = textureCubeUV( envMap, worldNormal, 1.0 );
 
@@ -29,6 +33,9 @@ export default /* glsl */`
 			reflectVec = normalize( mix( reflectVec, normal, roughness * roughness) );
 
 			reflectVec = inverseTransformDirection( reflectVec, viewMatrix );
+
+			// UMA Mbody: fix background rotation to camera
+			reflectVec = (envRotationMatrix * vec4(reflectVec, 1.0)).xyz;
 
 			vec4 envMapColor = textureCubeUV( envMap, reflectVec, roughness );
 
