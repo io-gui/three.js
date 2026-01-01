@@ -18932,13 +18932,14 @@ class ViewportTextureNode extends TextureNode {
 		this.isOutputTextureNode = true;
 
 		/**
-		 * The `updateBeforeType` is set to `NodeUpdateType.FRAME` since the node renders the
-		 * scene once per frame in its {@link ViewportTextureNode#updateBefore} method.
+		 * The `updateBeforeType` is set to `NodeUpdateType.RENDER` since the node needs to
+		 * update for each render call, supporting multi-canvas scenarios where multiple
+		 * render calls occur per frame.
 		 *
 		 * @type {string}
-		 * @default 'frame'
+		 * @default 'render'
 		 */
-		this.updateBeforeType = NodeUpdateType.FRAME;
+		this.updateBeforeType = NodeUpdateType.RENDER;
 
 		/**
 		 * The framebuffer texture for the current renderer context.
@@ -18951,12 +18952,12 @@ class ViewportTextureNode extends TextureNode {
 	}
 
 	/**
-	 * This methods returns a texture for the given render target reference.
+	 * This methods returns a texture for the given render target or canvas target reference.
 	 *
 	 * To avoid rendering errors, `ViewportTextureNode` must use unique framebuffer textures
 	 * for different render contexts.
 	 *
-	 * @param {?RenderTarget} [reference=null] - The render target reference.
+	 * @param {?(RenderTarget|CanvasTarget)} [reference=null] - The render target or canvas target reference.
 	 * @return {Texture} The framebuffer texture.
 	 */
 	getTextureForReference( reference = null ) {
@@ -18976,7 +18977,8 @@ class ViewportTextureNode extends TextureNode {
 
 		}
 
-		if ( reference === null ) {
+		// Use default framebuffer for null reference or the default canvas target (single canvas scenario)
+		if ( reference === null || reference.isDefaultCanvasTarget === true ) {
 
 			return defaultFramebuffer;
 
@@ -18996,9 +18998,13 @@ class ViewportTextureNode extends TextureNode {
 
 	updateReference( frame ) {
 
-		const renderTarget = frame.renderer.getRenderTarget();
+		const renderer = frame.renderer;
+		const renderTarget = renderer.getRenderTarget();
+		const canvasTarget = renderer.getCanvasTarget();
 
-		this.value = this.getTextureForReference( renderTarget );
+		const reference = canvasTarget !== null ? canvasTarget : renderTarget;
+
+		this.value = this.getTextureForReference( reference );
 
 		return this.value;
 
@@ -19008,8 +19014,11 @@ class ViewportTextureNode extends TextureNode {
 
 		const renderer = frame.renderer;
 		const renderTarget = renderer.getRenderTarget();
+		const canvasTarget = renderer.getCanvasTarget();
 
-		if ( renderTarget === null ) {
+		const reference = canvasTarget !== null ? canvasTarget : renderTarget;
+
+		if ( reference === null ) {
 
 			renderer.getDrawingBufferSize( _size$5 );
 
@@ -19021,7 +19030,7 @@ class ViewportTextureNode extends TextureNode {
 
 		//
 
-		const framebufferTexture = this.getTextureForReference( renderTarget );
+		const framebufferTexture = this.getTextureForReference( reference );
 
 		if ( framebufferTexture.image.width !== _size$5.width || framebufferTexture.image.height !== _size$5.height ) {
 
@@ -19077,8 +19086,6 @@ const viewportTexture = /*@__PURE__*/ nodeProxy( ViewportTextureNode ).setParame
  */
 const viewportMipTexture = /*@__PURE__*/ nodeProxy( ViewportTextureNode, null, null, { generateMipmaps: true } ).setParameterLength( 0, 3 );
 
-let _sharedDepthbuffer = null;
-
 /**
  * Represents the depth of the current viewport as a texture. This module
  * can be used in combination with viewport texture to achieve effects
@@ -19100,27 +19107,15 @@ class ViewportDepthTextureNode extends ViewportTextureNode {
 	 * @param {Node} [uvNode=screenUV] - The uv node.
 	 * @param {?Node} [levelNode=null] - The level node.
 	 */
-	constructor( uvNode = screenUV, levelNode = null ) {
+	constructor( uvNode = screenUV, levelNode = null, depthTexture = null ) {
 
-		if ( _sharedDepthbuffer === null ) {
+		if ( depthTexture === null ) {
 
-			_sharedDepthbuffer = new DepthTexture();
+			depthTexture = new DepthTexture();
 
 		}
 
-		super( uvNode, levelNode, _sharedDepthbuffer );
-
-	}
-
-	/**
-	 * Overwritten so the method always returns the unique shared
-	 * depth texture.
-	 *
-	 * @return {DepthTexture} The shared depth texture.
-	 */
-	getTextureForReference() {
-
-		return _sharedDepthbuffer;
+		super( uvNode, levelNode, depthTexture );
 
 	}
 
@@ -19133,9 +19128,10 @@ class ViewportDepthTextureNode extends ViewportTextureNode {
  * @function
  * @param {?Node} [uvNode=screenUV] - The uv node.
  * @param {?Node} [levelNode=null] - The level node.
+ * @param {?DepthTexture} [depthTexture=null] - A depth texture. If not provided, a depth texture is created automatically.
  * @returns {ViewportDepthTextureNode}
  */
-const viewportDepthTexture = /*@__PURE__*/ nodeProxy( ViewportDepthTextureNode ).setParameterLength( 0, 2 );
+const viewportDepthTexture = /*@__PURE__*/ nodeProxy( ViewportDepthTextureNode ).setParameterLength( 0, 3 );
 
 /**
  * This node offers a collection of features in context of the depth logic in the fragment shader.
@@ -19208,12 +19204,14 @@ class ViewportDepthNode extends Node {
 
 	}
 
-	setup( { camera } ) {
+	setup() {
 
 		const { scope } = this;
 		const value = this.valueNode;
 
 		let node = null;
+
+		const isPerspective = cameraProjectionMatrix.element( 3 ).w.equal( 0 );
 
 		if ( scope === ViewportDepthNode.DEPTH_BASE ) {
 
@@ -19225,31 +19223,19 @@ class ViewportDepthNode extends Node {
 
 		} else if ( scope === ViewportDepthNode.DEPTH ) {
 
-			if ( camera.isPerspectiveCamera ) {
+			const perspectiveDepth = viewZToPerspectiveDepth( positionView.z, cameraNear, cameraFar );
+			const orthographicDepth = viewZToOrthographicDepth( positionView.z, cameraNear, cameraFar );
 
-				node = viewZToPerspectiveDepth( positionView.z, cameraNear, cameraFar );
-
-			} else {
-
-				node = viewZToOrthographicDepth( positionView.z, cameraNear, cameraFar );
-
-			}
+			node = isPerspective.select( perspectiveDepth, orthographicDepth );
 
 		} else if ( scope === ViewportDepthNode.LINEAR_DEPTH ) {
 
 			if ( value !== null ) {
 
-				if ( camera.isPerspectiveCamera ) {
+				const viewZ = perspectiveDepthToViewZ( value, cameraNear, cameraFar );
+				const perspectiveLinear = viewZToOrthographicDepth( viewZ, cameraNear, cameraFar );
 
-					const viewZ = perspectiveDepthToViewZ( value, cameraNear, cameraFar );
-
-					node = viewZToOrthographicDepth( viewZ, cameraNear, cameraFar );
-
-				} else {
-
-					node = value;
-
-				}
+				node = isPerspective.select( perspectiveLinear, value );
 
 			} else {
 
