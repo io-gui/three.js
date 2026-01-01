@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>three.js webgpu - ViewportDepthTexture Multi-Canvas Test</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<style>
+			body {
+				margin: 0;
+				background-color: #1a1a1a;
+				color: #fff;
+				font-family: sans-serif;
+				overflow: hidden;
+			}
+			canvas {
+        border: 1px solid #fff;
+			}
+		</style>
+	</head>
+	<body>
+
+		<div id="info">
+			<h3>ViewportDepthTexture Multi-Canvas Test</h3>
+			<small>
+				Each canvas has its own WebGPURenderer and uses viewportLinearDepth for depth visualization.<br/>
+				Two independent renderers, two independent contexts.
+			</small>
+		</div>
+
+    <canvas id="canvas1"></canvas>
+    <canvas id="canvas2"></canvas>
+
+		<script type="importmap">
+			{
+				"imports": {
+					"three/webgpu": "../build/three.webgpu.js",
+					"three/tsl": "../build/three.tsl.js",
+					"three/addons/": "./jsm/"
+				}
+			}
+		</script>
+
+		<script type="module">
+
+			import * as THREE from 'three/webgpu';
+			import { linearDepth, viewportLinearDepth, vec3 } from 'three/tsl';
+
+			const views = [];
+
+			init();
+
+			function createView( canvasId, rotationSpeed, width, height ) {
+
+				const canvas = document.getElementById( canvasId );
+
+				const renderer = new THREE.WebGPURenderer( { canvas, antialias: true } );
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( width, height );
+
+        renderer.init();
+
+				const scene = new THREE.Scene();
+
+				const camera = new THREE.PerspectiveCamera( 50, 1, 0.1, 10 );
+				camera.position.set( 0, 4, 0 );
+				camera.lookAt( 0, 0, 0 );
+
+				const depthDistance = viewportLinearDepth.distance( linearDepth() );
+
+				const cube = new THREE.Mesh(
+          new THREE.SphereGeometry( 0.75, 32, 32 ),
+          new THREE.MeshBasicNodeMaterial( {
+            colorNode: vec3( depthDistance ),
+            side: THREE.DoubleSide
+          } )
+        );
+				cube.renderOrder = 1;
+				scene.add( cube );
+
+        const bgKnot = new THREE.Mesh(
+          new THREE.TorusKnotGeometry( 1, 0.4, 50, 20 ),
+          new THREE.MeshBasicNodeMaterial()
+        );
+        bgKnot.rotation.x = - Math.PI / 2;
+        bgKnot.position.y = - 2.8;
+        scene.add( bgKnot );
+
+				return {
+					renderer,
+					scene,
+					camera,
+					cube,
+					rotationSpeed,
+          bgKnot,
+				};
+
+			}
+
+			function init() {
+
+				views.push( createView( 'canvas1', 0.2, 360, 360 ) );
+				views.push( createView( 'canvas2', 0.8, 280, 280 ) );
+
+				// Start animation loop on first renderer
+				views[ 0 ].renderer.setAnimationLoop( animate );
+
+			}
+
+			function animate() {
+
+				const time = performance.now() * 0.001;
+
+				for ( const view of views ) {
+
+					view.cube.rotation.x = time * view.rotationSpeed;
+					view.cube.rotation.y = time * view.rotationSpeed * 0.7;
+					view.bgKnot.rotation.x = time * view.rotationSpeed;
+					view.bgKnot.rotation.y = time * view.rotationSpeed * 0.7;
+
+					view.renderer.render( view.scene, view.camera );
+
+        }
+
+      }
+
+		</script>
+	</body>
+</html>

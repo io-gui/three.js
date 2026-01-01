@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>three.js webgpu - ViewportDepthTexture Two RenderTargets Test</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<style>
+			body {
+				margin: 0;
+				background-color: #1a1a1a;
+				color: #fff;
+				font-family: sans-serif;
+				overflow: hidden;
+			}
+			#info {
+				position: absolute;
+				top: 10px;
+				left: 10px;
+				z-index: 100;
+			}
+		</style>
+	</head>
+	<body>
+
+		<div id="info">
+			<h3>ViewportDepthTexture Two RenderTargets Test</h3>
+			<small>
+				Single WebGPURenderer renders two scenes to separate RenderTargets.<br/>
+				Final pass composites both textures side-by-side.
+			</small>
+		</div>
+
+		<script type="importmap">
+			{
+				"imports": {
+					"three/webgpu": "../build/three.webgpu.js",
+					"three/tsl": "../build/three.tsl.js",
+					"three/addons/": "./jsm/"
+				}
+			}
+		</script>
+
+		<script type="module">
+
+			import * as THREE from 'three/webgpu';
+			import { linearDepth, viewportLinearDepth, vec3, uv, texture, step } from 'three/tsl';
+
+			let renderer;
+			let compositeScene, compositeCamera;
+			const views = [];
+			const rtSize = 512;
+
+			init();
+
+			function createView( rotationSpeed ) {
+
+				const renderTarget = new THREE.RenderTarget( rtSize, rtSize, {
+					depthBuffer: true
+				} );
+
+				const scene = new THREE.Scene();
+
+				const camera = new THREE.PerspectiveCamera( 50, 1, 0.1, 10 );
+				camera.position.set( 0, 4, 0 );
+				camera.lookAt( 0, 0, 0 );
+
+				const depthDistance = viewportLinearDepth.distance( linearDepth() );
+
+				const cube = new THREE.Mesh(
+					new THREE.SphereGeometry( 0.75, 32, 32 ),
+					new THREE.MeshBasicNodeMaterial( {
+						colorNode: vec3( depthDistance ),
+						side: THREE.DoubleSide
+					} )
+				);
+				cube.renderOrder = 1;
+				scene.add( cube );
+
+				const bgKnot = new THREE.Mesh(
+					new THREE.TorusKnotGeometry( 1, 0.4, 50, 20 ),
+					new THREE.MeshBasicNodeMaterial()
+				);
+				bgKnot.rotation.x = - Math.PI / 2;
+				bgKnot.position.y = - 2.8;
+				scene.add( bgKnot );
+
+				return {
+					renderTarget,
+					scene,
+					camera,
+					cube,
+					rotationSpeed,
+					bgKnot,
+				};
+
+			}
+
+			function init() {
+
+				renderer = new THREE.WebGPURenderer( { antialias: true } );
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				renderer.setAnimationLoop( animate );
+				document.body.appendChild( renderer.domElement );
+
+				// Create two views with different rotation speeds
+				views.push( createView( 0.2 ) );
+				views.push( createView( 0.8 ) );
+
+				// Create composite scene for final pass
+				compositeScene = new THREE.Scene();
+				compositeCamera = new THREE.OrthographicCamera( - 1, 1, 1, - 1, 0, 1 );
+
+				// Create material that shows both textures side-by-side
+				const tex1 = texture( views[ 0 ].renderTarget.texture );
+				const tex2 = texture( views[ 1 ].renderTarget.texture );
+
+				// Use UV to determine which side: left half shows tex1, right half shows tex2
+				const uvCoord = uv();
+				const isRightSide = step( 0.5, uvCoord.x );
+
+				// Remap UVs for each half (0-0.5 -> 0-1 for left, 0.5-1 -> 0-1 for right)
+				const leftUV = uvCoord.mul( vec3( 2, 1, 1 ) );
+				const rightUV = uvCoord.sub( vec3( 0.5, 0, 0 ) ).mul( vec3( 2, 1, 1 ) );
+
+				const leftSample = tex1.sample( leftUV.xy );
+				const rightSample = tex2.sample( rightUV.xy );
+
+				const finalColor = leftSample.mul( isRightSide.oneMinus() ).add( rightSample.mul( isRightSide ) );
+
+				const compositeMaterial = new THREE.MeshBasicNodeMaterial( {
+					colorNode: finalColor
+				} );
+
+				const quad = new THREE.Mesh(
+					new THREE.PlaneGeometry( 2, 2 ),
+					compositeMaterial
+				);
+				compositeScene.add( quad );
+
+				window.addEventListener( 'resize', onWindowResize );
+
+			}
+
+			function onWindowResize() {
+
+				renderer.setSize( window.innerWidth, window.innerHeight );
+
+			}
+
+			function animate() {
+
+				const time = performance.now() * 0.001;
+
+				// Render each view to its render target
+				for ( const view of views ) {
+
+					view.cube.rotation.x = time * view.rotationSpeed;
+					view.cube.rotation.y = time * view.rotationSpeed * 0.7;
+					view.bgKnot.rotation.x = time * view.rotationSpeed;
+					view.bgKnot.rotation.y = time * view.rotationSpeed * 0.7;
+
+					renderer.setRenderTarget( view.renderTarget );
+					renderer.render( view.scene, view.camera );
+
+				}
+
+				// Render composite to screen
+				renderer.setRenderTarget( null );
+				renderer.render( compositeScene, compositeCamera );
+
+			}
+
+		</script>
+	</body>
+</html>
