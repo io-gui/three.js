@@ -584,7 +584,7 @@ class NodeBuilder {
 
 			bindingsArray.push( binding );
 
-			sharedGroup = sharedGroup && binding.groupNode.shared !== true;
+			sharedGroup = sharedGroup && binding.groupNode.shared;
 
 		}
 
@@ -826,6 +826,17 @@ class NodeBuilder {
 
 		return ( texture.magFilter === LinearFilter || texture.magFilter === LinearMipmapNearestFilter || texture.magFilter === NearestMipmapLinearFilter || texture.magFilter === LinearMipmapLinearFilter ||
 			texture.minFilter === LinearFilter || texture.minFilter === LinearMipmapNearestFilter || texture.minFilter === NearestMipmapLinearFilter || texture.minFilter === LinearMipmapLinearFilter );
+
+	}
+
+	/**
+	 * Returns the maximum number of bytes available for uniform buffers.
+	 *
+	 * @return {number} The maximum number of bytes available for uniform buffers.
+	 */
+	getUniformBufferLimit() {
+
+		return 16384;
 
 	}
 
